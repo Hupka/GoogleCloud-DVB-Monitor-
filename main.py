@@ -2,15 +2,19 @@
 # coding=utf-8
 from flask import Flask, render_template
 import datetime
-import requests
-import requests
+from google.appengine.api import urlfetch
+import logging
 from bs4 import BeautifulSoup
 import json
 app = Flask(__name__)
+@app.route('/')
+def hello():
+    """Return a friendly HTTP greeting."""
+    return 'Here is a friendly greeting on the root route!'
 @app.route("/DVB/<Ort>/<station>/")
 def index(Ort,station): 
        url = "http://widgets.vvo-online.de/abfahrtsmonitor/Abfahrten.do?ort={0}&hst={1}".format(Ort,station)
-       response = requests.get(url)
+       response = urlfetch.fetch(url)
        HTL = json.loads(response.content)  
        linie = HTL[0]
        linie2 = HTL[1]
@@ -20,29 +24,43 @@ def index(Ort,station):
        return render_template('base.html',linie = linie,linie2 = linie2,linie3 = linie3,linie4 = linie4)
 @app.route("/Air")
 def Air():
-       form_data = {"ctl00$Inhalt$StationList":"114", "ctl00$Inhalt$BtnAnzeigen": "Anzeigen"}
-       url = "https://www.umwelt.sachsen.de/umwelt/infosysteme/luftonline/Uebersicht.aspx"
-       csrf_ids = ["__VIEWSTATEGENERATOR", "__EVENTVALIDATION", "__VIEWSTATE"]
+       ## Needs to be reworked since the "request" library is not supported by Google App Engine
 
-       client = requests.session()
 
-       form = client.get(url)
-       form_soup = BeautifulSoup(form.content, 'html.parser')
-       for csrf_id in csrf_ids:
-              value = form_soup.find("input", {"id": csrf_id }).get("value")
-              form_data[csrf_id] = value
+       # form_data = {"ctl00$Inhalt$StationList":"114", "ctl00$Inhalt$BtnAnzeigen": "Anzeigen"}
+       # url = "https://www.umwelt.sachsen.de/umwelt/infosysteme/luftonline/Uebersicht.aspx"
+       # csrf_ids = ["__VIEWSTATEGENERATOR", "__EVENTVALIDATION", "__VIEWSTATE"]
 
-       table = client.post(url, data=form_data)
-       table_soup = BeautifulSoup(table.content, 'html.parser')
-       #print(table_soup.prettify())
-       data = table_soup.find_all('tr')[1].get_text()
+       # client = requests.session()
 
-       print(data[21:])
-                                         
+       # form = client.get(url)
+       # form_soup = BeautifulSoup(form.content, 'html.parser')
+       # for csrf_id in csrf_ids:
+       #        value = form_soup.find("input", {"id": csrf_id }).get("value")
+       #        form_data[csrf_id] = value
+
+       # table = client.post(url, data=form_data)
+       # table_soup = BeautifulSoup(table.content, 'html.parser')
+       # #print(table_soup.prettify())
+       # data = table_soup.find_all('tr')[1].get_text()
+
+       # print(data[21:])
        return render_template('base2.html',data = data)
-if __name__ == "__main__":
-   #app.run(host='localhost', port=80, debug=True)
-   app.run()
+@app.errorhandler(500)
+def server_error(e):
+    logging.exception('An error occurred during a request.')
+    return """
+    An internal error occurred: <pre>{}</pre>
+    See logs for full stacktrace.
+    """.format(e), 500
+if __name__ == '__main__':
+    # This is used when running locally. Gunicorn is used to run the
+    # application on Google App Engine. See entrypoint in app.yaml.
+    app.run(host='127.0.0.1', port=8080, debug=True)
+
+
+
+    
 # import os
 
 # from flask import Flask

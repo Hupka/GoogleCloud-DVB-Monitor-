@@ -4,4 +4,4 @@ threadsafe: true
 
 handlers:
 - url: /.*
-  script: flaskr\main.app
+  script: main.py
